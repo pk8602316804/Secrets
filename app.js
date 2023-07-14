@@ -4,7 +4,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRound = 10;
 
 const app = express();
 
@@ -24,9 +25,6 @@ const userSchema = new mongoose.Schema({
     password : String
 });
 
-
-    
-
 const User  = new mongoose.model("User",userSchema);
 
 app.get("/",(req,res)=>{
@@ -43,15 +41,19 @@ app.get("/register",(req,res)=>{
 
 app.post("/register",(req,res)=>{
     
-    const newUser = new User({
-        email : req.body.username,  
-        password : md5(req.body.password)
-    });
-    newUser.save().then(()=>{
-        res.render(__dirname+"/views/secrets");
-    }).catch((err)=>{
-        console.log("Error in registration");
-    });
+    bcrypt.hash(req.body.password,saltRound,(err,hash)=>{
+        const newUser = new User({
+            email : req.body.username,  
+            password :  hash
+        });
+        newUser.save().then(()=>{
+            res.render(__dirname+"/views/secrets");
+        }).catch((err)=>{
+            console.log("Error in registration");
+        });
+    })
+
+    
 });
 
 app.post("/login",(req,res)=>{
@@ -59,13 +61,15 @@ app.post("/login",(req,res)=>{
     const formPassword = req.body.password;
 
     User.findOne({email : formUsername }).then((foundUser)=>{
-        if(foundUser.password == md5(formPassword)){
-            console.log("Succesfully Loged in");
-            res.render(__dirname+"/views/secrets");
-        }
-        else{
-            console.log("Wrong password");
-        }
+        bcrypt.compare(formPassword,foundUser.password,(err,result)=>{
+            if(result){
+                console.log("Succesfully Loged in");
+                res.render(__dirname+"/views/secrets");
+            }
+            else{
+                console.log("Wrong password");
+            }
+        })
     })
 })
 
